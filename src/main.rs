@@ -1,18 +1,14 @@
 use std::io;
 use std::io::prelude::*;
 
-use std::error::Error;
-use std::io::{Write, stderr};
-
-fn fatal_error(err: &dyn Error, msg: &str) {
-    let err_fill = if msg.is_empty() {
-        ""
-    } else {
-        "while "
-    };
-    let _ = writeln!(stderr(), "error {}{}: {}", err_fill, msg, err);
-    std::process::exit(1)
+macro_rules! fatal {
+    ($($tt:tt)*) => {{
+        use std::io::Write;
+        writeln!(&mut ::std::io::stderr(), $($tt)*).unwrap();
+        ::std::process::exit(1)
+    }}
 }
+
 
 fn parse(s: &str) {
     println!("GOT: {}", s);
@@ -27,8 +23,9 @@ fn process_lines() -> io::Result<()> {
 }
 
 fn main() {
-    if let Err(err) =  process_lines() {
-        fatal_error(&err, "processing lines")
+    if let Err(err) = process_lines() {
+        fatal!("processing lines: {}", err)
     }
+
     println!("Done.");
 }

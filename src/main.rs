@@ -1,5 +1,6 @@
 use std::io;
 use std::io::prelude::*;
+use std::collections::HashMap;
 
 use regex::Regex;
 
@@ -31,23 +32,24 @@ lazy_static! {
 ").unwrap();
 }
 
-fn parse(s: &str) -> Option<String> {
+fn parse(s: &str) -> Option<HashMap<&str, &str>> {
     LOG_PATTERN.captures(s).map(|cap| {
-        format!("FOUND: ts: {}, log_level: {}, msg_id: {}, file_info: {}, domain: {}, \
-                 msg_parts_raw: {}",
-                &cap["ts"],
-                &cap["log_level"],
-                &cap.name("msg_id").map_or("<NONE>", |m| m.as_str()),
-                &cap["file_info"],
-                &cap["domain"],
-                &cap["msg_parts_raw"])
+        let mut hash = HashMap::new();
+        for name in LOG_PATTERN.capture_names() {
+            if let Some(name) = name {
+                if let Some(value) = cap.name(name) {
+                    hash.insert(name, value.as_str());
+                }
+            }
+        }
+        hash
     })
 }
 
 fn process_lines() -> io::Result<()> {
     let stdin = io::stdin();
     for (idx, line_result) in stdin.lock().lines().enumerate() {
-        parse(&line_result?).map(|s| println!("{} {}", idx + 1, s));
+        parse(&line_result?).map(|h| println!("{} {:?}", idx + 1, h));
     }
     Ok(())
 }

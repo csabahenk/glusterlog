@@ -41,7 +41,33 @@ fn parse(s: &str) -> Value {
             for name in LOG_PATTERN.capture_names() {
                 if let Some(name) = name {
                     if let Some(value) = cap.name(name) {
-                        obj.insert(name.to_string(), Value::String(value.as_str().to_string()));
+                        // "msg_parts_raw needs" postprocessing
+                        if name == "msg_parts_raw" {
+                            // ... split it with tabs
+                            let mut splitter = value.as_str().split('\t');
+                            if let Some(msg) = splitter.next() {
+                                // first entry is value for "meesage" key
+                                obj.insert("message".to_string(), Value::String(msg.to_string()));
+                                // consecutive entries are 'key=val' pairs, which
+                                // are collected under "fields" key
+                                let mut fields = Map::new();
+                                for msg_part in splitter {
+                                    match msg_part.splitn(2, '=').collect::<Vec<&str>>()[..] {
+                                        [key, value] => {
+                                            fields.insert(key.to_string(),
+                                                          Value::String(value.to_string()))
+                                        }
+                                        [key] => fields.insert(key.to_string(), Value::Null),
+                                        _ => panic!("splitn(2,..) result arity not 1 or 2"),
+                                    };
+                                }
+                                if !fields.is_empty() {
+                                    obj.insert("fields".to_string(), Value::Object(fields));
+                                }
+                            }
+                        } else {
+                            obj.insert(name.to_string(), Value::String(value.as_str().to_string()));
+                        }
                     }
                 }
             }

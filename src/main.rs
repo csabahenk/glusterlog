@@ -1,8 +1,8 @@
 use std::io;
 use std::io::prelude::*;
-use std::collections::HashMap;
 
 use regex::Regex;
+use serde_json::{Map, Value};
 
 #[macro_use]
 extern crate lazy_static;
@@ -32,24 +32,24 @@ lazy_static! {
 ").unwrap();
 }
 
-fn parse(s: &str) -> Option<HashMap<&str, &str>> {
+fn parse(s: &str) -> Option<Value> {
     LOG_PATTERN.captures(s).map(|cap| {
-        let mut hash = HashMap::new();
+        let mut obj = Map::new();
         for name in LOG_PATTERN.capture_names() {
             if let Some(name) = name {
                 if let Some(value) = cap.name(name) {
-                    hash.insert(name, value.as_str());
+                    obj.insert(name.to_string(), Value::String(value.as_str().to_string()));
                 }
             }
         }
-        hash
+        Value::Object(obj)
     })
 }
 
 fn process_lines() -> io::Result<()> {
     let stdin = io::stdin();
     for (idx, line_result) in stdin.lock().lines().enumerate() {
-        parse(&line_result?).map(|h| println!("{} {:?}", idx + 1, h));
+        parse(&line_result?).map(|o| println!("{} {}", idx + 1, o.to_string()));
     }
     Ok(())
 }

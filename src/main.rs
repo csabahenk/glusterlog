@@ -43,12 +43,23 @@ lazy_static! {
 fn parse(s: &str) -> Value {
     let mut obj = Map::new();
 
+    // Ensurinng "known_format" is the initial key
+    obj.insert("known_format".to_string(), Value::Bool(true));
+
+    if let Err(err) = parse_try(s, &mut obj) {
+        obj.insert("known_format".to_string(), Value::Bool(false));
+        obj.insert("parse_error".to_string(), Value::String(err));
+        obj.insert("message".to_string(), Value::String(s.to_string()));
+    };
+    Value::Object(obj)
+}
+
+fn parse_try(s: &str, obj: &mut Map<String, Value>) -> Result<(), String> {
     match match LOG_PATTERN.captures(s) {
         Some(cap) => (&*LOG_PATTERN, Some(cap)),
         None => (&*LOG_REPEAT_PATTERN, LOG_REPEAT_PATTERN.captures(s)),
     } {
         (rx, Some(cap)) => {
-            obj.insert("known_format".to_string(), Value::Bool(true));
             for name in rx.capture_names() {
                 if let Some(name) = name {
                     if let Some(value) = cap.name(name) {
@@ -70,7 +81,10 @@ fn parse(s: &str) -> Value {
                                                 fields.insert(key.to_string(),
                                                               Value::String(value.to_string()))
                                             }
-                                            [key] => fields.insert(key.to_string(), Value::Null),
+                                            [key] => {
+                                                return Err(format!("fields::{}: missing value",
+                                                                   key))
+                                            }
                                             _ => panic!("splitn(2,..) result arity not 1 or 2"),
                                         };
                                     }
@@ -82,10 +96,13 @@ fn parse(s: &str) -> Value {
                             "repetitions" => {
                                 let value = value.as_str();
                                 obj.insert(name.to_string(),
-                                           match value.parse() {
-                                               Ok(n) => Value::Number(n),
-                                               _ => Value::String(value.to_string()),
-                                           });
+                                           Value::Number(value.parse()
+                                                         /* The regex already ensures parse will succeed
+                                                         .map_err(|err|
+                                                            format!("repetitions value: {}", err))?
+                                                          */
+                                                         .expect("only well-formatted numeral should reach here")
+                                                         ));
                             }
                             _ => {
                                 obj.insert(name.to_string(),
@@ -95,13 +112,10 @@ fn parse(s: &str) -> Value {
                     }
                 }
             }
+            Ok(())
         }
-        (_, None) => {
-            obj.insert("known_format".to_string(), Value::Bool(false));
-            obj.insert("message".to_string(), Value::String(s.to_string()));
-        }
-    };
-    Value::Object(obj)
+        (_, None) => Err("format mismatch".to_string()),
+    }
 }
 
 fn process_lines() -> io::Result<()> {

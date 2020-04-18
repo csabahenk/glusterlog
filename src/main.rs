@@ -34,7 +34,7 @@ lazy_static! {
         *LOG_PATTERN_STRING)).unwrap();
 
     static ref LOG_REPEAT_PATTERN: Regex = Regex::new(&format!(
-        r#"(?x)\AThe\ message\ "{}"\ repeated\ (?P<repetitions>\d+)\ times\ between\ {}\ and\ {}\z"#,
+        r#"(?x)\AThe\ message\ "{}"\ repeated\ (?P<repetitions>\S+)\ times\ between\ {}\ and\ {}\z"#,
         *LOG_PATTERN_STRING,
         make_ts_pattern("ts_beg"),
         make_ts_pattern("ts_end"))).unwrap();
@@ -96,13 +96,13 @@ fn parse_try(s: &str, obj: &mut Map<String, Value>) -> Result<(), String> {
                             "repetitions" => {
                                 let value = value.as_str();
                                 obj.insert(name.to_string(),
-                                           Value::Number(value.parse()
-                                                         /* The regex already ensures parse will succeed
-                                                         .map_err(|err|
-                                                            format!("repetitions value: {}", err))?
-                                                          */
-                                                         .expect("only well-formatted numeral should reach here")
-                                                         ));
+                                           Value::Number(value.parse::<u32>()
+                                               // Let just sloppily be \S+ captured in the regex
+                                               // so that here we can do more specific valudation
+                                               .map_err(|err|
+                                                  format!("repetitions value: {}", err))?.into()
+                                               //.expect("only well-formatted numeral should reach here")
+                                               ));
                             }
                             _ => {
                                 obj.insert(name.to_string(),

@@ -120,10 +120,15 @@ fn parse_try(s: &str, obj: &mut Map<String, Value>) -> Result<(), String> {
 
 fn process_lines() -> io::Result<()> {
     let stdin = io::stdin();
-    for line_result in stdin.lock().lines() {
-        let o = parse(&line_result?);
+    let mut stdin_lk = stdin.lock();
+    let mut buf = String::new();
+
+    while stdin_lk.read_line(&mut buf)? > 0 {
+        let o = parse(&buf.trim_end());
         println!("{}", o.to_string());
+        buf.clear();
     }
+
     Ok(())
 }
 

@@ -7,14 +7,6 @@ use serde_json::{Map, Value};
 #[macro_use]
 extern crate lazy_static;
 
-macro_rules! fatal {
-    ($($tt:tt)*) => {{
-        use std::io::Write;
-        writeln!(&mut ::std::io::stderr(), $($tt)*).unwrap();
-        ::std::process::exit(1)
-    }}
-}
-
 fn make_ts_pattern(s: &str) -> String {
     format!(r"\[(?P<{}>[^\]]+)\]", s)
 }
@@ -134,6 +126,7 @@ fn process_lines() -> io::Result<()> {
 
 fn main() {
     if let Err(err) = process_lines() {
-        fatal!("processing lines: {}", err)
+        eprintln!("processing lines: {}", err);
+        std::process::exit(1);
     }
 }

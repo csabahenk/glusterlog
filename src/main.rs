@@ -114,10 +114,11 @@ fn process_lines() -> io::Result<()> {
     let stdin = io::stdin();
     let mut stdin_lk = stdin.lock();
     let mut buf = String::new();
+    let mut stdout = io::stdout();
 
     while stdin_lk.read_line(&mut buf)? > 0 {
         let o = parse(&buf.trim_end());
-        println!("{}", o.to_string());
+        writeln!(stdout, "{}", o.to_string())?;
         buf.clear();
     }
 
@@ -126,7 +127,9 @@ fn process_lines() -> io::Result<()> {
 
 fn main() {
     if let Err(err) = process_lines() {
-        eprintln!("processing lines: {}", err);
-        std::process::exit(1);
+        if err.kind() != io::ErrorKind::BrokenPipe {
+            eprintln!("processing lines: {}", err);
+            std::process::exit(1);
+        }
     }
 }
